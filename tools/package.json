@@ -5,11 +5,13 @@
   "type": "module",
   "description": "Offline DEM baker for the Hellissandur eclipse flight sim (dev-only; outputs are committed).",
   "scripts": {
-    "bake": "node bake-dem.mjs"
+    "bake": "node bake-dem.mjs",
+    "imagery": "node bake-imagery.mjs"
   },
   "devDependencies": {
     "geotiff": "^2.1.3",
     "pngjs": "^7.0.0",
-    "proj4": "^2.11.0"
+    "proj4": "^2.11.0",
+    "sharp": "^0.34.0"
   }
 }

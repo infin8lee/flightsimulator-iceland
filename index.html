@@ -120,6 +120,12 @@
     geo.computeVertexNormals();                                         // essential — real DEM is unlit-flat without it
     terrainMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));
     scene.add(terrainMesh);
+    // Drape real satellite imagery over the terrain (Esri World Imagery, baked to the same bbox).
+    // Falls back to the elevation colour-ramp above if the texture fails to load.
+    new THREE.TextureLoader().load('assets/snaefellsnes-imagery.jpg',function(tex){
+      tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+      var m=terrainMesh.material; m.map=tex; m.vertexColors=false; m.color.setHex(0xffffff); m.needsUpdate=true;
+    });
   }
 
   // Ocean: a big plane just above the baked sea (which is flat 0). Sized so its edge is never in view.
@@ -225,7 +231,7 @@
 
   // ---------------------------------------------------------------- boot
   loadHeightmap(function(ok){
-    if(ok){buildTerrain();setSpawn();var a=document.getElementById('f-attr');if(a&&DEM.attribution)a.textContent=DEM.attribution.toLowerCase();}
+    if(ok){buildTerrain();setSpawn();var a=document.getElementById('f-attr');if(a)a.textContent='imagery © esri, maxar, earthstar · elevation © arcticdem';}
     demReady=true;if(flyEl)flyEl.textContent='click to fly';
   });
   requestAnimationFrame(loop);

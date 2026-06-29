@@ -15,6 +15,10 @@ collision, so they can never disagree:
 - the true ridges, valleys, and fjord-cut north coast of the peninsula,
 - **Snæfellsjökull** (~1,446 m) as the real ice-capped landmark you climb toward.
 
+The **surface** is real too: **Esri World Imagery** is baked into a texture and draped over the terrain,
+so you fly over photographic Iceland — moss, lava fields, the ice cap, real water — not stylized colours.
+(If that texture ever fails to load, the sim falls back to an elevation colour-ramp, so it always works.)
+
 You spawn over **Hellissandur** (64.917° N, 23.88° W) heading ~158°, nose pointed straight at the glacier.
 
 ## Controls
@@ -43,8 +47,10 @@ document and `assets/*` are CDN-cached. Drag-and-drop the folder into Netlify, o
 index.html                       the whole sim (HTML + CSS + Three.js)
 assets/snaefellsnes-height.png   baked elevation, 2048², 16-bit packed into R (high) / G (low)
 assets/snaefellsnes-height.json  sidecar: bbox, scale, min/max, landmark coords, attribution
+assets/snaefellsnes-imagery.jpg  baked Esri satellite imagery (4096²), draped on the terrain
 tools/bake-dem.mjs               offline DEM baker (run once; its output is committed)
-tools/package.json               bake-only dev deps (geotiff, pngjs, proj4)
+tools/bake-imagery.mjs           offline imagery baker (Esri World Imagery → texture)
+tools/package.json               bake-only dev deps (geotiff, pngjs, proj4, sharp)
 ```
 
 ## Re-baking the terrain (optional)
@@ -55,7 +61,8 @@ site never bakes anything.
 ```
 cd tools
 npm install
-npm run bake      # fetches ArcticDEM 10 m, reprojects EPSG:3413 → bbox, writes ../assets/*
+npm run bake      # fetches ArcticDEM 10 m, reprojects EPSG:3413 → bbox, writes ../assets/*.png + .json
+npm run imagery   # fetches Esri World Imagery for the bbox, writes ../assets/snaefellsnes-imagery.jpg
 ```
 
 Key knobs in `tools/bake-dem.mjs`: `BBOX` (area), `OUT` (heightmap size), `GEOID` / `SEA_CUT`
@@ -76,6 +83,9 @@ For a faceted, low-poly look instead of the smooth shading, add `flatShading:tru
 
 ## Data, attribution & licensing
 
+- **Imagery — Esri World Imagery** (Esri, Maxar, Earthstar Geographics and the GIS community): open
+  tiles, no API key. On-screen credit is shown in the HUD. Use within Esri's terms of use; attribution
+  is required (and present).
 - **Elevation — ArcticDEM** (Polar Geospatial Center): open data, no key, no usage fee. On-screen
   credit is shown in the HUD, pulled from the sidecar JSON. Recommended citation:
   > Porter, Claire, et al. (2022). *ArcticDEM — Mosaics, Version 4.1.* Harvard Dataverse.
