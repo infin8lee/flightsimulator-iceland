@@ -1,0 +1,34 @@
+{
+  "encoding": "rg16-normalized",
+  "source": "ArcticDEM v4.1 10m mosaic (EPSG:3413), geoid-corrected",
+  "bbox": {
+    "w": -24.2,
+    "s": 64.7,
+    "e": -23.5,
+    "n": 65
+  },
+  "size": 2048,
+  "minElevation": 0,
+  "maxElevation": 1423,
+  "spanMetersX": 33117,
+  "spanMetersZ": 33396,
+  "metersPerPixelX": 16.17,
+  "metersPerPixelY": 16.31,
+  "center": {
+    "lng": -23.85,
+    "lat": 64.85
+  },
+  "hellissandur": {
+    "lng": -23.88,
+    "lat": 64.917,
+    "x": -1419,
+    "z": -7458
+  },
+  "glacier": {
+    "lng": -23.776,
+    "lat": 64.808,
+    "x": 3501,
+    "z": 4675
+  },
+  "attribution": "Elevation © ArcticDEM · PGC / NSF / NGA"
+}
