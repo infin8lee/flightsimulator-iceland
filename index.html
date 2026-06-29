@@ -132,14 +132,73 @@
   var water=new THREE.Mesh(new THREE.PlaneGeometry(120000,120000),new THREE.MeshStandardMaterial({color:0x10314a,transparent:true,opacity:0.9,roughness:0.35,metalness:0.2}));
   water.rotation.x=-Math.PI/2; water.position.y=1.5; scene.add(water);
 
-  // ---------------------------------------------------------------- the plane (low-poly)
-  var plane=new THREE.Group();
-  var bm=new THREE.MeshStandardMaterial({color:0xe8e8ec,roughness:0.5,metalness:0.3}),am=new THREE.MeshStandardMaterial({color:0xd85a30,roughness:0.5});
-  var fus=new THREE.Mesh(new THREE.CylinderGeometry(2.6,1.4,26,14),bm);fus.rotation.x=Math.PI/2;plane.add(fus);
-  var nose=new THREE.Mesh(new THREE.ConeGeometry(2.6,8,14),bm);nose.rotation.x=-Math.PI/2;nose.position.z=-17;plane.add(nose);
-  plane.add(new THREE.Mesh(new THREE.BoxGeometry(46,1.2,7),am));
-  var tl=new THREE.Mesh(new THREE.BoxGeometry(16,1,4),am);tl.position.z=12;plane.add(tl);
-  var fin=new THREE.Mesh(new THREE.BoxGeometry(1,7,5),am);fin.position.set(0,3,13);plane.add(fin);scene.add(plane);
+  // ---------------------------------------------------------------- the aircraft (private jet)
+  // Built from primitives so the sim stays single-file/no-asset. Frame: −z = forward (nose),
+  // +z = aft (tail), +x = right wing, +y = up. White-with-navy livery, tinted glass, metal engines.
+  function buildJet(){
+    var g=new THREE.Group(), DS=THREE.DoubleSide;
+    var body=new THREE.MeshStandardMaterial({color:0xf2f3f5,roughness:0.32,metalness:0.15,side:DS});
+    var accent=new THREE.MeshStandardMaterial({color:0x1b2a4a,roughness:0.34,metalness:0.3,side:DS});
+    var glass=new THREE.MeshStandardMaterial({color:0x0b0d14,roughness:0.12,metalness:0.55});
+    var metal=new THREE.MeshStandardMaterial({color:0x3a3d44,roughness:0.35,metalness:0.85});
+    var darkM=new THREE.MeshStandardMaterial({color:0x0d0f14,roughness:0.5,metalness:0.6});
+
+    // Fuselage — smooth lathe profile [radius, station]; station 0 = tail, 30 = nose.
+    var prof=[[0,0],[0.45,1.2],[0.85,3],[1.25,6],[1.55,10],[1.68,14],[1.68,19.5],[1.55,22.5],[1.28,25.5],[0.92,28],[0.5,29.6],[0,30]];
+    var fus=new THREE.Mesh(new THREE.LatheGeometry(prof.map(function(p){return new THREE.Vector2(p[0],p[1]);}),28),body);
+    fus.rotation.x=-Math.PI/2; fus.position.z=15; g.add(fus);   // → nose at z −15, tail at z +15
+
+    // Cockpit windscreen (tinted glass on the upper nose).
+    var wind=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),glass);
+    wind.scale.set(1.3,0.6,2.1); wind.position.set(0,0.8,-10); g.add(wind);
+
+    // Cabin windows + a painted cheat-line, both sides.
+    for(var si=-1;si<=1;si+=2){
+      var cl=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.3,23),accent);
+      cl.position.set(si*1.6,0.04,1); g.add(cl);
+      for(var w=0;w<8;w++){
+        var win=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.4,0.5),glass);
+        win.position.set(si*1.64,0.5,-6.5+w*1.6); g.add(win);
+      }
+    }
+
+    // Extruded swept surface from a planform (2D points), returned unrotated.
+    function surface(pts,depth,mat){
+      var sh=new THREE.Shape(); sh.moveTo(pts[0][0],pts[0][1]);
+      for(var i=1;i<pts.length;i++) sh.lineTo(pts[i][0],pts[i][1]);
+      return new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:depth,bevelEnabled:false}),mat);
+    }
+
+    // Main wings — swept + tapered, low-mid mount, with dihedral.
+    for(var si=-1;si<=1;si+=2){
+      var wing=surface([[0,3.4],[si*11,-1.6],[si*11,-3.6],[0,-3.8]],0.34,body);
+      wing.rotation.x=-Math.PI/2;
+      var piv=new THREE.Group(); piv.add(wing);
+      piv.position.set(si*1.3,-0.55,1.0); piv.rotation.z=si*0.06; g.add(piv);
+    }
+
+    // Rear-fuselage engines — nacelle + intake ring + exhaust + pylon, both sides.
+    for(var si=-1;si<=1;si+=2){
+      var nac=new THREE.Mesh(new THREE.CylinderGeometry(1.05,0.92,5,18),metal);
+      nac.rotation.x=Math.PI/2; nac.position.set(si*2.5,0.4,6); g.add(nac);
+      var intake=new THREE.Mesh(new THREE.TorusGeometry(0.95,0.16,10,18),darkM);
+      intake.position.set(si*2.5,0.4,3.55); g.add(intake);
+      var exh=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.78,1.2,16),darkM);
+      exh.rotation.x=Math.PI/2; exh.position.set(si*2.5,0.4,8.7); g.add(exh);
+      var pylon=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.5,2.4),body);
+      pylon.position.set(si*1.7,0.45,6); g.add(pylon);
+    }
+
+    // T-tail — swept navy fin + white horizontal stabilizers at its top.
+    var fin=surface([[8.5,1.4],[13,1.4],[13.2,6.6],[11,6.6]],0.3,accent); // pts = [aft(z), up(y)]
+    fin.rotation.y=-Math.PI/2; fin.position.x=0.15; g.add(fin);
+    for(var si=-1;si<=1;si+=2){
+      var stab=surface([[0,1.3],[si*4,-0.4],[si*4,-1.5],[0,-1.3]],0.26,body);
+      stab.rotation.x=-Math.PI/2; stab.position.set(0,6.6,11.4); g.add(stab);
+    }
+    return g;
+  }
+  var plane=buildJet(); scene.add(plane);
 
   // ---------------------------------------------------------------- flight state
   var SUNDIR=new THREE.Vector3(-0.45,0.42,-0.79).normalize();
