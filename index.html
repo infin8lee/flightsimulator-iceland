@@ -252,6 +252,30 @@
   }
   var plane=buildJet(); scene.add(plane);
 
+  // ---------------------------------------------------------------- festival-site marker
+  // A findable beam + a map-pin with an eclipse badge at the festival site (Hellissandur).
+  // The badge is a thematic placeholder — swap in the real festival logo by replacing emblemTex().
+  function emblemTex(){
+    var c=document.createElement('canvas');c.width=c.height=128;var x=c.getContext('2d');
+    x.beginPath();x.arc(64,64,58,0,Math.PI*2);x.fillStyle='#0c1426';x.fill();            // dark badge
+    x.lineWidth=5;x.strokeStyle='#ffc24d';x.stroke();                                     // gold rim
+    var g=x.createRadialGradient(64,60,12,64,60,40);                                      // eclipse corona
+    g.addColorStop(0,'rgba(255,240,205,0)');g.addColorStop(0.5,'rgba(255,240,205,0)');g.addColorStop(0.64,'rgba(255,238,196,1)');g.addColorStop(0.82,'rgba(255,205,110,0.35)');g.addColorStop(1,'rgba(255,205,110,0)');
+    x.fillStyle=g;x.fillRect(0,0,128,128);
+    x.beginPath();x.arc(64,60,18,0,Math.PI*2);x.fillStyle='#0a0c12';x.fill();             // eclipsed sun
+    var t=new THREE.Texture(c);t.needsUpdate=true;return t;
+  }
+  function buildFestivalMarker(){
+    var fx=-1564,fz=-7124,gy=H(fx,fz);          // festival site (64.914°N, 23.883°W) in local metres
+    var grp=new THREE.Group();grp.position.set(fx,gy,fz);
+    function beamMesh(rt,rb,op,col){var m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,3000,20,1,true),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));m.position.y=1500;grp.add(m);}
+    beamMesh(16,30,0.14,0xffc24d);beamMesh(6,11,0.4,0xffe7ac);   // soft outer glow + bright core
+    var pinMat=new THREE.MeshStandardMaterial({color:0xffb733,roughness:0.4,metalness:0.35,emissive:0x5a3400,emissiveIntensity:0.5});
+    var point=new THREE.Mesh(new THREE.ConeGeometry(34,150,22),pinMat);point.rotation.x=Math.PI;point.position.y=75;grp.add(point);
+    var badge=new THREE.Sprite(new THREE.SpriteMaterial({map:emblemTex(),transparent:true}));badge.scale.set(100,100,1);badge.position.y=168;grp.add(badge);
+    scene.add(grp);
+  }
+
   // ---------------------------------------------------------------- flight state
   var SUNDIR=new THREE.Vector3(-0.45,0.42,-0.79).normalize();
   var SPAWN=new THREE.Vector3(0,2400,0), START_ALT=2400, faceGlacier=0;  // finalised once the DEM loads
@@ -361,7 +385,7 @@
 
   // ---------------------------------------------------------------- boot
   loadHeightmap(function(ok){
-    if(ok){buildTerrain();setSpawn();var a=document.getElementById('f-attr');if(a)a.textContent='imagery © esri, maxar, earthstar · elevation © arcticdem';}
+    if(ok){buildTerrain();setSpawn();buildFestivalMarker();var a=document.getElementById('f-attr');if(a)a.textContent='imagery © esri, maxar, earthstar · elevation © arcticdem';}
     demReady=true;if(flyEl)flyEl.textContent='click to fly';
   });
   requestAnimationFrame(loop);
