@@ -20,9 +20,11 @@
 <style>
   html,body{margin:0;height:100%;background:#05060a;overflow:hidden;font-family:'Space Grotesk',system-ui,sans-serif}
   #fwrap{position:relative;width:100vw;height:100vh}
-  canvas{display:block;width:100%;height:100%;outline:none}
+  canvas{display:block;width:100%;height:100%;outline:none;touch-action:none;-webkit-user-select:none;user-select:none}
   .h{position:absolute;inset:0;pointer-events:none;z-index:5}
   .g{color:#7CFCB4;text-shadow:0 0 8px rgba(60,220,140,.5)}
+  /* mobile only — never affects the desktop layout */
+  @media (max-width:680px){#f-title{font-size:34px!important}#f-sub{font-size:13px!important;max-width:30ch!important}#f-spd,#f-alt{font-size:24px!important}}
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300&family=Space+Grotesk:wght@300;400;500&display=swap');
 </style>
 </head>
@@ -38,7 +40,7 @@
     <div class="g" style="position:absolute;right:26px;top:50%;transform:translateY(-50%);text-align:right"><div id="f-alt" style="font-size:32px;font-weight:500;line-height:1">0</div><div style="font-size:10px;letter-spacing:.26em;color:#4fae82;text-transform:uppercase;margin-top:4px">m · altitude</div></div>
     <div style="position:absolute;top:50%;left:50%;width:120px;height:120px;transform:translate(-50%,-50%);opacity:.4"><div style="position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(124,252,180,.6)"></div><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:rgba(124,252,180,.6)"></div></div>
     <div style="position:absolute;right:26px;bottom:26px;width:14px;height:160px;border:1px solid rgba(124,252,180,.4);border-radius:8px;overflow:hidden"><i id="f-thr" style="position:absolute;left:0;right:0;bottom:0;height:40%;background:#7CFCB4;display:block"></i></div>
-    <div style="position:absolute;left:26px;bottom:22px;font-size:11px;letter-spacing:.1em;color:#4fae82;line-height:1.7">↑↓ pitch · ←→ bank · W/S throttle · space boost · E hasten eclipse · R reset</div>
+    <div id="f-hint-hud" style="position:absolute;left:26px;bottom:22px;font-size:11px;letter-spacing:.1em;color:#4fae82;line-height:1.7">↑↓ pitch · ←→ bank · W/S throttle · space boost · E hasten eclipse · R reset</div>
     <!-- Data attribution (required); text is filled from the heightmap sidecar so it stays correct per-source -->
     <div id="f-attr" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.08em;color:#5a6b62;opacity:.55"></div>
   </div>
@@ -49,10 +51,10 @@
 
   <!-- Start overlay; the button stays "loading terrain…" until the DEM is decoded -->
   <div id="f-start" style="position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,6,10,.82);text-align:center;cursor:pointer">
-    <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:56px;color:#f4f1ea">Iceland Eclipse Flight</div>
-    <div style="margin-top:14px;color:#a7a399;font-size:14px;max-width:38ch">Fly the Snæfellsnes cover and experience the scene from above the land as we enter Totality</div>
+    <div id="f-title" style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:56px;color:#f4f1ea">Iceland Eclipse Flight</div>
+    <div id="f-sub" style="margin-top:14px;color:#a7a399;font-size:14px;max-width:38ch">Fly the Snæfellsnes cover and experience the scene from above the land as we enter Totality</div>
     <div id="f-fly" style="margin-top:30px;padding:14px 32px;border:1px solid #7CFCB4;border-radius:100px;color:#7CFCB4;font-size:12px;letter-spacing:.3em;text-transform:uppercase">loading terrain…</div>
-    <div style="margin-top:24px;font-size:11px;color:#6f6c64;letter-spacing:.12em">↑↓ pitch · ←→ bank · W/S throttle · space boost · E hasten eclipse</div>
+    <div id="f-hint-start" style="margin-top:24px;font-size:11px;color:#6f6c64;letter-spacing:.12em">↑↓ pitch · ←→ bank · W/S throttle · space boost · E hasten eclipse</div>
   </div>
 </div>
 
@@ -267,6 +269,15 @@
   function ku(e){keys[e.key.toLowerCase()]=false;}
   window.addEventListener('keydown',kd);window.addEventListener('keyup',ku);
 
+  // ---- touch steering (mobile) — drag anywhere to pitch/bank; desktop keyboard is untouched ----
+  var touch={active:false,px:0,py:0,ox:0,oy:0,ref:200};
+  function tStart(e){var t=e.touches[0];if(!t)return;touch.active=true;touch.ox=t.clientX;touch.oy=t.clientY;touch.px=0;touch.py=0;touch.ref=(Math.min(window.innerWidth,window.innerHeight)*0.28)||200;e.preventDefault();}
+  function tMove(e){if(!touch.active)return;var t=e.touches[0];if(!t)return;touch.px=-Math.max(-1,Math.min(1,(t.clientX-touch.ox)/touch.ref));touch.py=-Math.max(-1,Math.min(1,(t.clientY-touch.oy)/touch.ref));e.preventDefault();}
+  function tEnd(){touch.active=false;touch.px=0;touch.py=0;}
+  canvas.addEventListener('touchstart',tStart,{passive:false});
+  canvas.addEventListener('touchmove',tMove,{passive:false});
+  canvas.addEventListener('touchend',tEnd);canvas.addEventListener('touchcancel',tEnd);
+
   // ---------------------------------------------------------------- heightmap loader (async)
   var demReady=false, started=false;
   var startEl=document.getElementById('f-start'), flyEl=document.getElementById('f-fly');
@@ -292,6 +303,11 @@
   startEl.addEventListener('click',startElClick);
   canvas.addEventListener('click',function(){canvas.focus();});
   if(muteBtn) muteBtn.addEventListener('click',function(e){e.stopPropagation();if(!bgm)return;bgm.muted=!bgm.muted;muteBtn.textContent=bgm.muted?'🔇':'🔊';muteBtn.style.color=bgm.muted?'#5a6b62':'#7CFCB4';});
+  // mobile: replace the keyboard hints with a touch instruction
+  if(window.matchMedia&&matchMedia('(pointer:coarse)').matches){
+    var hs=document.getElementById('f-hint-start');if(hs)hs.textContent='drag anywhere to fly · the eclipse unfolds as you go';
+    var hh=document.getElementById('f-hint-hud');if(hh)hh.textContent='drag to steer';
+  }
 
   // ---------------------------------------------------------------- main loop
   var hE=document.getElementById('f-hdg'),sE=document.getElementById('f-spd'),aE=document.getElementById('f-alt'),tE=document.getElementById('f-thr'),phE=document.getElementById('f-phase');
@@ -300,6 +316,7 @@
   function loop(now){var dt=Math.min((now-last)/1000,0.05);last=now;
     if(started){
       var pIn=(keys['arrowup']?1:0)-(keys['arrowdown']?1:0),rIn=(keys['arrowleft']?1:0)-(keys['arrowright']?1:0),tIn=(keys['w']?1:0)-(keys['s']?1:0);
+      if(touch.active){pIn=touch.py;rIn=touch.px;} // mobile: finger drag steers pitch + bank
       st.throttle=Math.max(0,Math.min(1,st.throttle+tIn*0.5*dt));st.boost+=(((keys[' ']?1:0))-st.boost)*Math.min(1,dt*4);
       // Pitch/roll rates are framerate-based and scale-independent, so the hand-feel is unchanged.
       st.pitch+=pIn*0.9*dt;st.pitch-=st.pitch*0.6*dt;st.pitch=Math.max(-0.7,Math.min(0.7,st.pitch));
