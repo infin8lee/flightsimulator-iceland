@@ -46,7 +46,7 @@
   </div>
 
   <!-- Minimap frame: the 3D map renders into the canvas beneath this; this is just the border + label -->
-  <div id="f-map" style="position:absolute;left:14px;bottom:48px;width:160px;height:160px;z-index:5;border:1px solid rgba(124,252,180,.4);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45);pointer-events:none;display:none">
+  <div id="f-map" style="position:absolute;left:14px;bottom:46px;width:230px;height:150px;z-index:5;border:1px solid rgba(124,252,180,.4);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45);pointer-events:none;display:none">
     <div style="position:absolute;top:5px;left:9px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#7CFCB4;opacity:.85;text-shadow:0 1px 3px rgba(0,0,0,.7)">area map</div>
   </div>
 
@@ -188,7 +188,7 @@
   }
 
   // Ocean: a big plane just above the baked sea (which is flat 0). Sized so its edge is never in view.
-  var water=new THREE.Mesh(new THREE.PlaneGeometry(120000,120000),new THREE.MeshStandardMaterial({color:0x10314a,transparent:true,opacity:0.9,roughness:0.35,metalness:0.2}));
+  var water=new THREE.Mesh(new THREE.PlaneGeometry(120000,120000),new THREE.MeshStandardMaterial({color:0x10314a,transparent:true,opacity:0.9,roughness:0.62,metalness:0.05}));
   water.rotation.x=-Math.PI/2; water.position.y=1.5; scene.add(water);
 
   // ---------------------------------------------------------------- the aircraft (private jet)
@@ -265,7 +265,7 @@
   // stays the swap point for a real festival logo (used on the minimap pin).
   var FEST={x:-1564,z:-7124};                          // festival site (64.914°N, 23.883°W) local metres
   var miniCam=null, playerArrow=null, fRingMat=null;   // minimap camera + live player marker + pulsing ring
-  var mapMS=160, mapMX=14, mapMY=48;                   // minimap size + corner offsets (set in rz)
+  var mapMW=232, mapMH=150, mapMX=14, mapMY=46;        // rectangular minimap + corner offsets (set in rz)
   function emblemTex(){
     var c=document.createElement('canvas');c.width=c.height=128;var x=c.getContext('2d');
     x.beginPath();x.arc(64,64,58,0,Math.PI*2);x.fillStyle='#0c1426';x.fill();            // dark badge
@@ -288,15 +288,18 @@
   // Corner minimap: a tilted top-down camera over the whole peninsula, plus bright layer-1 markers
   // (festival pin + player arrow) that only the minimap camera renders.
   function buildMinimap(){
-    miniCam=new THREE.PerspectiveCamera(46,1,1000,120000);
-    miniCam.position.set(0,42000,17000);miniCam.lookAt(0,0,0);miniCam.layers.enable(1);
-    var gy=H(FEST.x,FEST.z), pin=new THREE.Group();pin.position.set(FEST.x,gy,FEST.z);
-    pin.add(new THREE.Mesh(new THREE.ConeGeometry(560,2600,5),new THREE.MeshBasicMaterial({color:0xffc24d})).translateY(1300));
-    pin.add(new THREE.Mesh(new THREE.SphereGeometry(720,16,12),new THREE.MeshBasicMaterial({color:0xffe6a0})).translateY(2700));
-    pin.traverse(function(o){if(o.layers)o.layers.set(1);});scene.add(pin);
-    var sh=new THREE.Shape();sh.moveTo(0,1500);sh.lineTo(-980,-1150);sh.lineTo(0,-520);sh.lineTo(980,-1150);sh.lineTo(0,1500);
-    var ar=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshBasicMaterial({color:0x6fe9ff,side:THREE.DoubleSide}));
-    ar.rotation.x=-Math.PI/2;playerArrow=new THREE.Group();playerArrow.add(ar);
+    // A low, tilted camera over the peninsula gives the in-game "3D map" look (relief + horizon),
+    // not a flat top-down. North is up; the whole area stays in frame.
+    miniCam=new THREE.PerspectiveCamera(40,mapMW/mapMH,800,150000);
+    miniCam.position.set(0,25000,26000);miniCam.lookAt(0,700,-2400);miniCam.layers.enable(1);
+    var gy=H(FEST.x,FEST.z);
+    // festival pin — a bright gold marker that always faces the minimap camera and stays on top
+    var fpin=new THREE.Sprite(new THREE.SpriteMaterial({map:sunTex,transparent:true,depthTest:false,depthWrite:false}));
+    fpin.scale.set(2150,2150,1);fpin.position.set(FEST.x,gy+650,FEST.z);fpin.renderOrder=11;fpin.layers.set(1);scene.add(fpin);
+    // player arrow — flat, rotates to your heading, always drawn on top
+    var sh=new THREE.Shape();sh.moveTo(0,1700);sh.lineTo(-1080,-1280);sh.lineTo(0,-560);sh.lineTo(1080,-1280);sh.lineTo(0,1700);
+    var ar=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshBasicMaterial({color:0x6fe9ff,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));
+    ar.rotation.x=-Math.PI/2;ar.renderOrder=12;playerArrow=new THREE.Group();playerArrow.add(ar);
     playerArrow.traverse(function(o){if(o.layers)o.layers.set(1);});scene.add(playerArrow);
   }
 
@@ -407,9 +410,9 @@
     // --- corner minimap: second pass from the top-down camera into the lower-left viewport ---
     if(started&&miniCam){
       var mp=document.getElementById('f-map');if(mp&&mp.style.display==='none')mp.style.display='block';
-      if(playerArrow){playerArrow.position.set(st.pos.x,H(st.pos.x,st.pos.z)+260,st.pos.z);playerArrow.rotation.y=st.heading;}
+      if(playerArrow){playerArrow.position.set(st.pos.x,H(st.pos.x,st.pos.z)+320,st.pos.z);playerArrow.rotation.y=st.heading;}
       var fog0=scene.fog;scene.fog=null;
-      renderer.setScissorTest(true);renderer.setViewport(mapMX,mapMY,mapMS,mapMS);renderer.setScissor(mapMX,mapMY,mapMS,mapMS);
+      renderer.setScissorTest(true);renderer.setViewport(mapMX,mapMY,mapMW,mapMH);renderer.setScissor(mapMX,mapMY,mapMW,mapMH);
       renderer.render(scene,miniCam);
       renderer.setScissorTest(false);renderer.setViewport(0,0,wrap.clientWidth,wrap.clientHeight);
       scene.fog=fog0;
@@ -417,8 +420,9 @@
     requestAnimationFrame(loop);
   }
   function rz(){var w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
-    mapMS=Math.max(118,Math.min(184,Math.round(Math.min(w,h)*0.3)));mapMX=14;mapMY=48;
-    var mp=document.getElementById('f-map');if(mp){mp.style.width=mapMS+'px';mp.style.height=mapMS+'px';mp.style.left=mapMX+'px';mp.style.bottom=mapMY+'px';}
+    mapMH=Math.max(96,Math.min(152,Math.round(Math.min(w,h)*0.22)));mapMW=Math.round(mapMH*1.55);mapMX=14;mapMY=46;
+    if(miniCam){miniCam.aspect=mapMW/mapMH;miniCam.updateProjectionMatrix();}
+    var mp=document.getElementById('f-map');if(mp){mp.style.width=mapMW+'px';mp.style.height=mapMH+'px';mp.style.left=mapMX+'px';mp.style.bottom=mapMY+'px';}
   }
   window.addEventListener('resize',rz);rz();
 
